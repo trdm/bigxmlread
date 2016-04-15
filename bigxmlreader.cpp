@@ -1,8 +1,10 @@
+//#include <QtGui>
 #include <QApplication>
 #include <QFile>
 #include <QMessageBox>
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QLineEdit>
 #include <QVBoxLayout>
 #include <QDialog>
 #include <QPushButton>
@@ -33,11 +35,12 @@ BigXmlReader::BigXmlReader(QWidget* parent):QTreeWidget(parent)
 
     connect(this, SIGNAL(itemExpanded(QTreeWidgetItem*)), this, SLOT(expandBigXmlItem(QTreeWidgetItem*)));
     connect(this, SIGNAL(itemActivated(QTreeWidgetItem*, int)), this, SLOT(enterBigXmlItem(QTreeWidgetItem*, int)));
+    connect(this, SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)), this, SLOT(currentItemChangedXml(QTreeWidgetItem*, QTreeWidgetItem*)));
 }
 
 BigXmlReader::~BigXmlReader()
 {
-    //TO DO
+   //TO DO
 }
 
 bool BigXmlReader::openFile(QString& fileName, QXmlStreamReader& xml, bool fOpenNew )
@@ -71,24 +74,30 @@ bool BigXmlReader::readBigXML(QXmlStreamReader& xml)
         QXmlStreamReader::TokenType tokentype = xml.readNext();
         switch (tokentype) {
         case QXmlStreamReader::StartElement:
-        {   level ++;
-            item = createChildItem(item, BigXmlItem::Node);
-            item->setText(0, xml.name().toString());
-            item->setIcon(0, folderIcon);
-            foreach(QXmlStreamAttribute attr, xml.attributes())
-            {
-                BigXmlItem* childItem = new BigXmlItem(item, BigXmlItem::Attribute);
-                childItem->setText(0, attr.name().toString());
-                childItem->setText(1, attr.value().toString());
+            {   level ++;
+                QString atrText = "";
+                item = createChildItem(item, BigXmlItem::Node);
+                item->setText(0, xml.name().toString());
+                item->setIcon(0, folderIcon);
+                foreach(QXmlStreamAttribute attr, xml.attributes())
+                {
+                    BigXmlItem* childItem = new BigXmlItem(item, BigXmlItem::Attribute);
+                    childItem->setText(0, attr.name().toString());
+                    childItem->setText(1, attr.value().toString());
+                    atrText.append(QString(" %1 = \"%2\"").arg(attr.name().toString()).arg(attr.value().toString().trimmed()));
+                }
+                if (!atrText.isEmpty()) {
+                    atrText = " ["+atrText+"]";
+                    item->setText(1, atrText);
+                }
             }
-        }
             break;
         case QXmlStreamReader::EndElement:
-        {
-            if(item) item = static_cast<BigXmlItem*>(item->parent());
-            level --;
-            break;
-        }
+            {
+                if(item) item = static_cast<BigXmlItem*>(item->parent());
+                level --;
+                break;
+            }
         case QXmlStreamReader::Characters:
         case QXmlStreamReader::DTD:
         case QXmlStreamReader::Comment:
@@ -102,11 +111,13 @@ bool BigXmlReader::readBigXML(QXmlStreamReader& xml)
         default: break;
         }
     }
-    resizeColumnToContents(0);
-    resizeColumnToContents(1);
+    //resizeColumnToContents(0);
+    //resizeColumnToContents(1);
+    setColumnWidth(0, 300);
     QApplication::restoreOverrideCursor();
     return !xml.error();
 }
+
 
 bool BigXmlReader::readBigXMLtoLevel(QXmlStreamReader& xml, int levelDown)
 {
@@ -125,6 +136,7 @@ bool BigXmlReader::readBigXMLtoLevel(QXmlStreamReader& xml, int levelDown)
                 item = createChildItem(item, BigXmlItem::Node);
                 item->setText(0, xml.name().toString());
                 item->setIcon(0, folderIcon);
+                QString atrText = "";
                 if( level == levelDown){
                     new BigXmlItem(item, BigXmlItem::Empty);
                 }else{
@@ -133,6 +145,11 @@ bool BigXmlReader::readBigXMLtoLevel(QXmlStreamReader& xml, int levelDown)
                         BigXmlItem* childItem = new BigXmlItem(item, BigXmlItem::Attribute);
                         childItem->setText(0, attr.name().toString());
                         childItem->setText(1, attr.value().toString());
+                        atrText.append(QString(" %1 = \"%2\"").arg(attr.name().toString()).arg(attr.value().toString().trimmed()));
+                    }
+                    if (!atrText.isEmpty()) {
+                        atrText = " ["+atrText+"]";
+                        item->setText(1, atrText);
                     }
                 }
             }
@@ -161,8 +178,8 @@ bool BigXmlReader::readBigXMLtoLevel(QXmlStreamReader& xml, int levelDown)
         default: break;
         }
     }
-    resizeColumnToContents(0);
-    resizeColumnToContents(1);
+    //resizeColumnToContents(0);
+    //resizeColumnToContents(1);
     QApplication::restoreOverrideCursor();
     return !xml.error();
 }
@@ -199,42 +216,42 @@ bool BigXmlReader::findDataBigXML( QXmlStreamReader& xml, QString strData, QTree
         QXmlStreamReader::TokenType tokentype = xml.readNext();
         switch (tokentype) {
         case QXmlStreamReader::StartElement:{
-            if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
-            else maxIndex.insert( level, 0);
-            level ++;
-            foreach(QXmlStreamAttribute attr, xml.attributes()){
                 if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
                 else maxIndex.insert( level, 0);
-                name = attr.name().toString().toLower();
-                if(name.contains(strData.toLower())){
-                    if(isNextIndex(currentIndex)) return true;
+                level ++;
+                foreach(QXmlStreamAttribute attr, xml.attributes()){
+                    if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
+                    else maxIndex.insert( level, 0);
+                    name = attr.name().toString().toLower();
+                    if(name.contains(strData.toLower())){
+                        if(isNextIndex(currentIndex)) return true;
+                    }
+                    name = attr.value().toString().toLower();
+                    if(name.contains(strData.toLower())){
+                        if(isNextIndex(currentIndex)) return true;
+                    }
                 }
-                name = attr.value().toString().toLower();
+                name = xml.name().toString().toLower();
                 if(name.contains(strData.toLower())){
+                    maxIndex.remove(level);
                     if(isNextIndex(currentIndex)) return true;
                 }
             }
-            name = xml.name().toString().toLower();
-            if(name.contains(strData.toLower())){
-                maxIndex.remove(level);
-                if(isNextIndex(currentIndex)) return true;
-            }
-        }
             break;
         case QXmlStreamReader::EndElement:{
-            maxIndex.remove(level);
-            level --;
-        }
+                maxIndex.remove(level);
+                level --;
+            }
             break;
         case QXmlStreamReader::Characters:
         case QXmlStreamReader::DTD:
         case QXmlStreamReader::Comment:{
-            name = xml.text().toString().toLower();
-            if(name.contains(strData.toLower())){
-                maxIndex.remove(level);
-                if(isNextIndex(currentIndex)) return true;
+                name = xml.text().toString().toLower();
+                if(name.contains(strData.toLower())){
+                    maxIndex.remove(level);
+                    if(isNextIndex(currentIndex)) return true;
+                }
             }
-        }
             break;
         default: break;
         }
@@ -352,31 +369,35 @@ void BigXmlReader::expandBigXmlItem(QTreeWidgetItem* itemBegin )
                     QXmlStreamReader::TokenType tokentype = xml.readNext();
                     switch (tokentype) {
                     case QXmlStreamReader::StartElement:
-                    {
-                        if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
-                        else maxIndex.insert( level, 0);
-                        level ++;
-
-                        InsideIndex = isInsideIndex(currentIndex);
-
-                        foreach(QXmlStreamAttribute attr, xml.attributes())
                         {
                             if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
                             else maxIndex.insert( level, 0);
-                            if( InsideIndex && (level == maxLevel) ){
-                                BigXmlItem* childItem = new BigXmlItem(item, BigXmlItem::Attribute);
-                                childItem->setText(0, attr.name().toString());
-                                childItem->setText(1, attr.value().toString());
+                            level ++;
+
+                            InsideIndex = isInsideIndex(currentIndex);
+
+                            foreach(QXmlStreamAttribute attr, xml.attributes())
+                            {
+                                if(maxIndex.contains(level)) maxIndex.insert( level, maxIndex.value(level)+1);
+                                else maxIndex.insert( level, 0);
+                                if( InsideIndex && (level == maxLevel) ){
+                                    BigXmlItem* childItem = new BigXmlItem(item, BigXmlItem::Attribute);
+                                    childItem->setText(0, attr.name().toString());
+                                    childItem->setText(1, attr.value().toString());
+                                    QString atrText = item->text(1);
+                                    atrText.append(QString(" %1 = \"%2\"").arg(attr.name().toString()).arg(attr.value().toString().trimmed()));
+                                    item->setText(1, atrText);
+                                }
+                            }
+
+
+                            if( InsideIndex && (level == maxLevel + 1)){
+                                item = createChildItem(item, BigXmlItem::Node);
+                                item->setText(0, xml.name().toString());
+                                item->setIcon(0, folderIcon);
+                                new BigXmlItem(item, BigXmlItem::Empty);
                             }
                         }
-
-                        if( InsideIndex && (level == maxLevel + 1)){
-                            item = createChildItem(item, BigXmlItem::Node);
-                            item->setText(0, xml.name().toString());
-                            item->setIcon(0, folderIcon);
-                            new BigXmlItem(item, BigXmlItem::Empty);
-                        }
-                    }
                         break;
                     case QXmlStreamReader::EndElement:
                         if( InsideIndex && (level > maxLevel) &&(level <= maxLevel + 1)){
@@ -411,13 +432,19 @@ void BigXmlReader::expandBigXmlItem(QTreeWidgetItem* itemBegin )
 
 void BigXmlReader::enterBigXmlItem(QTreeWidgetItem* itemBegin, int column)
 {
+    currentItemChangedXml(itemBegin,0);
     QPlainTextEdit* label = new QPlainTextEdit(this);
     label->setPlainText(itemBegin->text(1));
     label->setReadOnly(true);
     label->setMaximumHeight(200);
+    QLineEdit * lineEdit = new QLineEdit(this);
+    lineEdit->setText(itemBegin->text(0));
+    lineEdit->setReadOnly(true);
 
     QVBoxLayout *Layout = new QVBoxLayout;
+    Layout->addWidget(lineEdit);
     Layout->addWidget(label);
+    //Layout->addWidget(okButton);
 
     QDialog textDialog(this);
     textDialog.setMinimumSize(320, 240);
@@ -429,6 +456,22 @@ void BigXmlReader::enterBigXmlItem(QTreeWidgetItem* itemBegin, int column)
         // TODO;
     }
     textDialog.close();
+
 }
+
+void BigXmlReader::currentItemChangedXml(QTreeWidgetItem *cur, QTreeWidgetItem *prev)
+{
+    if (cur){
+        QString txt = cur->text(0);
+        QTreeWidgetItem *par = cur->parent();
+        while(par){
+            txt.prepend("/").prepend(par->text(0));
+            par = par->parent();
+        }
+        if (!txt.isEmpty())
+             emit changeCurPath(txt);
+    }
+}
+
 
 

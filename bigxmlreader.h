@@ -9,8 +9,8 @@
 #include <QTextDecoder>
 
 QT_BEGIN_NAMESPACE
-class BigXmlReader;
-class BigXmlItem;
+    class BigXmlReader;
+    class BigXmlItem;
 QT_END_NAMESPACE
 
 class BigXmlItem: public QTreeWidgetItem
@@ -32,7 +32,7 @@ private:
 
 class BigXmlReader: public QTreeWidget
 {
-    Q_OBJECT
+Q_OBJECT
 
 public:
     BigXmlReader(QWidget* parent = 0);
@@ -51,6 +51,10 @@ public:
 public Q_SLOTS:
     void expandBigXmlItem(QTreeWidgetItem * item );
     void enterBigXmlItem(QTreeWidgetItem * item, int column);
+    void currentItemChangedXml(QTreeWidgetItem * cur, QTreeWidgetItem * prev);
+
+signals:
+    void changeCurPath(QString& txt);
 
 private:
     BigXmlItem* createChildItem(BigXmlItem* item, BigXmlItem::XmlItemType Type );

@@ -1,35 +1,29 @@
-//#include <QtGui>
-#include <QApplication>
-#include <QHeaderView>
-#include <QStatusBar>
-#include <QFileDialog>
-#include <QDir>
-#include <QMessageBox>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QDialog>
-#include <QHBoxLayout>
-#include <QTreeWidgetItem>
-#include <QMenuBar>
+#include <QtGui>
+
 #include "bigxmlmainwindow.h"
 #include "bigxmlreader.h"
 
 MainWindow::MainWindow()
 {
     QStringList labels;
-    labels << tr("Node/Attribute") << tr("Value");
+    labels << tr("Node/Attribute")  << tr("Value/Comment")<< tr("Child count") ;
 
     bigxmlWidget.header()->setResizeMode(QHeaderView::ResizeToContents);
+    bigxmlWidget.header()->setResizeMode(QHeaderView::Interactive);
     bigxmlWidget.setHeaderLabels(labels);
     setCentralWidget(&bigxmlWidget);
+    bigxmlWidget.setColumnWidth(0,250);
+    bigxmlWidget.setColumnWidth(1,400);
+    bigxmlWidget.setUniformRowHeights(true);
 
     createActions();
     createMenus();
-    statusBar()->showMessage(tr("Ready"));
 
+    statusBar()->showMessage(tr("Ready"));
+    connect(&bigxmlWidget,SIGNAL(changeCurPath(QString&)), this,SLOT(changeCurPath(QString&)));
+    //void changeCurPath(QString& txt);
     setWindowTitle(tr("BigXmlReader"));
-    resize(480, 320);
+    resize(680, 620);
 }
 
 void MainWindow::open()
@@ -40,20 +34,8 @@ void MainWindow::open()
                                          tr("XML Files (*.xml)"));
     if (fileName.isEmpty())
         return;
+    openFile(fileName);
 
-    QXmlStreamReader xml;
-    if( bigxmlWidget.openFile(fileName, xml)){
-        //if (!bigxmlWidget.readBigXML(xml)) {
-        if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
-            QMessageBox::warning(this, tr("BigXmlReader"),
-                                 tr("Parse error in file %1:\n\n%2")
-                                 .arg(fileName)
-                                 .arg(bigxmlWidget.errorXMLString(xml)));
-        } else {
-            setWindowTitle(fileName);
-            statusBar()->showMessage(tr("File loaded"), 2000);
-        }
-    }
 }
 
 void MainWindow::find()
@@ -108,8 +90,18 @@ void MainWindow::findPrevious()
 
 void MainWindow::about()
 {
-    QMessageBox::about(this, tr("About BigXmlReader"),
-                       tr("The <b>BigXmlReader</b> example demonstrates how to quick read big xml file. E-mail: sikuda@yandex.ru"));
+   QMessageBox::about(this, tr("About BigXmlReader"),
+                      tr("The <b>BigXmlReader</b> example demonstrates how to read big xml file"));
+}
+
+void MainWindow::changeCurPath(QString &txt)
+{
+    int pos = m_cBoxCurPath->findText(txt);
+    if (pos == -1){
+        m_cBoxCurPath->addItem(txt);
+        pos = m_cBoxCurPath->findText(txt);
+    }
+    m_cBoxCurPath->setCurrentIndex(pos);
 }
 
 void MainWindow::createActions()
@@ -130,9 +122,16 @@ void MainWindow::createActions()
     findActNext->setShortcuts(QKeySequence::FindNext);
     connect(findActNext, SIGNAL(triggered()), this, SLOT(findNext()));
 
-    //    findActPrevious = new QAction(tr("F&ind next..."), this);
-    //    findActPrevious->setShortcuts(QKeySequence::FindPrevious);
-    //    connect(findActPrevious, SIGNAL(triggered()), this, SLOT(findPrevious()));
+    for (int i = 0; i < MaxRecentFiles; ++i) {
+        recentFileActs[i] = new QAction(this);
+        recentFileActs[i]->setVisible(false);
+        connect(recentFileActs[i], SIGNAL(triggered()),
+                this, SLOT(openRecentFile()));
+    }
+
+//    findActPrevious = new QAction(tr("F&ind next..."), this);
+//    findActPrevious->setShortcuts(QKeySequence::FindPrevious);
+//    connect(findActPrevious, SIGNAL(triggered()), this, SLOT(findPrevious()));
 
     aboutAct = new QAction(tr("&About"), this);
     connect(aboutAct, SIGNAL(triggered()), this, SLOT(about()));
@@ -145,9 +144,13 @@ void MainWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(openAct);
+    separatorAct = fileMenu->addSeparator();
+    for (int i = 0; i < MaxRecentFiles; ++i)
+         fileMenu->addAction(recentFileActs[i]);
     fileMenu->addSeparator();
     fileMenu->addAction(exitAct);
     //menuBar()->addSeparator();
+    updateRecentFileActions();
 
     findMenu = menuBar()->addMenu(tr("Find"));
     findMenu->addAction(findAct);
@@ -157,4 +160,83 @@ void MainWindow::createMenus()
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(aboutAct);
     helpMenu->addAction(aboutQtAct);
+
+    QToolBar *tb = new QToolBar(this);
+    tb->setWindowTitle(tr("File Actions"));
+    addToolBar(tb);
+
+    QLabel* label = new QLabel(this);
+    label->setText("Cur path:");
+    tb->addWidget(label);
+
+    m_cBoxCurPath = new QComboBox(this);
+    tb->addWidget(m_cBoxCurPath);
+    m_cBoxCurPath->setEditable(true);
+    m_cBoxCurPath->setMaximumWidth(200);
+    m_cBoxCurPath->setMinimumWidth(200);
+
 }
+
+void MainWindow::updateRecentFileActions()
+{
+    QSettings settings;
+    QStringList files = settings.value("recentFileList").toStringList();
+
+    int numRecentFiles = qMin(files.size(), (int)MaxRecentFiles);
+    m_countRecentFiles = numRecentFiles;
+    for (int i = 0; i < numRecentFiles; ++i) {
+        QString text = tr("&%1 %2").arg(i + 1).arg(strippedName(files[i]));
+        recentFileActs[i]->setText(text);
+        recentFileActs[i]->setData(files[i]);
+        recentFileActs[i]->setVisible(true);
+    }
+    for (int j = numRecentFiles; j < MaxRecentFiles; ++j)
+        recentFileActs[j]->setVisible(false);
+
+    separatorAct->setVisible(numRecentFiles > 0);
+}
+
+QString MainWindow::strippedName(const QString &fullFileName){
+    return QFileInfo(fullFileName).fileName();
+}
+
+void MainWindow::openFile(QString &fileName)
+{
+    QXmlStreamReader xml;
+    if( bigxmlWidget.openFile(fileName, xml)){
+        //if (!bigxmlWidget.readBigXML(xml)) {
+        // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
+        if (!bigxmlWidget.readBigXMLtoLevel(xml, 4)) {
+            QMessageBox::warning(this, tr("BigXmlReader"),
+                                 tr("Parse error in file %1:\n\n%2")
+                                 .arg(fileName)
+                                 .arg(bigxmlWidget.errorXMLString(xml)));
+        } else {
+            setWindowTitle(fileName);
+            statusBar()->showMessage(tr("File loaded"), 2000);
+        }
+    }
+    QSettings settings;
+    QStringList files = settings.value("recentFileList").toStringList();
+    files.removeAll(fileName);
+    files.prepend(fileName);
+    while (files.size() > MaxRecentFiles)
+        files.removeLast();
+
+    settings.setValue("recentFileList", files);
+
+    foreach (QWidget *widget, QApplication::topLevelWidgets()) {
+        MainWindow *mainWin = qobject_cast<MainWindow *>(widget);
+        if (mainWin)
+            mainWin->updateRecentFileActions();
+    }
+
+}
+
+void MainWindow::openRecentFile()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (action)
+        openFile(action->data().toString());
+}
+
