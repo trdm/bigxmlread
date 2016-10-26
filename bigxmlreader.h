@@ -22,8 +22,8 @@ public:
     BigXmlItem(QTreeWidgetItem* parent, BigXmlItem::XmlItemType Type);
     BigXmlItem(QTreeWidget* parent, BigXmlItem::XmlItemType Type);
 
-    inline void setXmlType( BigXmlItem::XmlItemType Type){type = Type;};
-    inline BigXmlItem::XmlItemType getXmlType(){return type; };
+    inline void setXmlType( BigXmlItem::XmlItemType Type){type = Type;}
+    inline BigXmlItem::XmlItemType getXmlType(){return type; }
 
 private:
     XmlItemType type;
@@ -44,7 +44,7 @@ public:
     void buildTreeBigXMLToMaxIndex();
     QString errorXMLString(QXmlStreamReader& xml) const;
     bool openFile( QString& fileName, QXmlStreamReader& xml, bool fOpenNew = true);
-    QString getFilename(){ return currentFile.fileName(); };
+    QString getFilename(){ return currentFile.fileName(); }
 
     QString strFindString;
 

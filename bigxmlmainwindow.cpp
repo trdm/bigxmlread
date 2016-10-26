@@ -6,7 +6,7 @@
 MainWindow::MainWindow()
 {
     QStringList labels;
-    labels << tr("Node/Attribute")  << tr("Value/Comment")<< tr("Child count") ;
+    labels << tr("Node/Attribute")  << tr("Value/Comment"); //<< tr("Child count") ;
 
     bigxmlWidget.header()->setResizeMode(QHeaderView::ResizeToContents);
     bigxmlWidget.header()->setResizeMode(QHeaderView::Interactive);
@@ -22,7 +22,7 @@ MainWindow::MainWindow()
     statusBar()->showMessage(tr("Ready"));
     connect(&bigxmlWidget,SIGNAL(changeCurPath(QString&)), this,SLOT(changeCurPath(QString&)));
     //void changeCurPath(QString& txt);
-    setWindowTitle(tr("BigXmlReader"));
+    setWindowTitle(tr("BigXmlReader trdm Edition"));
     resize(680, 620);
 }
 
@@ -91,7 +91,19 @@ void MainWindow::findPrevious()
 void MainWindow::about()
 {
    QMessageBox::about(this, tr("About BigXmlReader"),
-                      tr("The <b>BigXmlReader</b> example demonstrates how to read big xml file"));
+                      QString(tr(
+                         "The <b>BigXmlReader</b> example demonstrates how to read big xml file.\n\r"
+                         "<br>"                                  
+                         "E-mail: sikuda@yandex.ru"
+                         "<a href = \"https://github.com/sikuda/bigxmlread\">https://github.com/sikuda/bigxmlread</a>"
+                         "<br>"
+                         "<br>"
+                         "Edition of trdm E-mail: trdmval@gmail.com"
+                         "<br>"
+                         "<a href = \"https://github.com/trdm/bigxmlread\">https://github.com/trdm/bigxmlread</a>"
+                         "<br>"
+                         "Compiled at %1 %2"
+                         )).arg(__DATE__).arg(__TIME__));
 }
 
 void MainWindow::changeCurPath(QString &txt)
@@ -206,13 +218,17 @@ void MainWindow::openFile(QString &fileName)
     if( bigxmlWidget.openFile(fileName, xml)){
         //if (!bigxmlWidget.readBigXML(xml)) {
         // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
-        if (!bigxmlWidget.readBigXMLtoLevel(xml, 4)) {
+        int lebel = 4;
+        qint64 sz = QFileInfo(fileName).size();
+        if (sz<(1024000 * 3)) // mb
+            lebel = 100;
+        if (!bigxmlWidget.readBigXMLtoLevel(xml, lebel)) {
             QMessageBox::warning(this, tr("BigXmlReader"),
                                  tr("Parse error in file %1:\n\n%2")
                                  .arg(fileName)
                                  .arg(bigxmlWidget.errorXMLString(xml)));
         } else {
-            setWindowTitle(fileName);
+            setWindowTitle(fileName+" - BigXmlReader");
             statusBar()->showMessage(tr("File loaded"), 2000);
         }
     }

@@ -1,3 +1,4 @@
+win32:RC_FILE = bigxmlread.rc
 HEADERS       = bigxmlmainwindow.h \
                 bigxmlreader.h \
     xqueryform.h
@@ -13,3 +14,5 @@ win32 {
 
 FORMS += \
     xqueryform.ui
+
+#RESOURCES += bigxmlread.qrc
