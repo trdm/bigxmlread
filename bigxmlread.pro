@@ -16,3 +16,7 @@ FORMS += \
     xqueryform.ui
 
 #RESOURCES += bigxmlread.qrc
+
+DISTFILES += \
+    Readme.txt \
+    TODO.txt

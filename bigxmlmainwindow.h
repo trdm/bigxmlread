@@ -6,6 +6,7 @@
 #include <QToolBar>
 #include <QAction>
 #include <QComboBox>
+#include <QListWidget>
 #include "bigxmlreader.h"
 
 //QT_BEGIN_NAMESPACE
@@ -20,30 +21,39 @@ public:
     MainWindow();
     void openFile(QString& fileName);
     int getCountRecentFiles() {return m_countRecentFiles; }
+    void reateDockWindows();
 public slots:
     void open();
     void find();
+    void propertyCurFile();
     void findNext();
     void findPrevious();
     void about();
     void changeCurPath(QString& txt);
     void openRecentFile();
-
+protected:
+    void closeEvent( QCloseEvent *ev);
 private:
     void createActions();
     void createMenus();
     void updateRecentFileActions();
+    void createDockWindows();
     QString strippedName(const QString &fullFileName);
 
     BigXmlReader bigxmlWidget;
 
-    QString curFile;
+    QString m_curFileName;
+    QListWidget *m_mesages;
+    QDockWidget *m_mesageDock;
 
     QMenu *fileMenu;
     QMenu *findMenu;
     QMenu *recentFilesMenu;
+    QMenu *viewMenu;
     QMenu *helpMenu;
     QAction *openAct;
+    QAction *propertyAct;
+    QAction *toggleViewMessagesAct;
     QAction *findAct;
     QAction *findActNext;
     QAction *exitAct;

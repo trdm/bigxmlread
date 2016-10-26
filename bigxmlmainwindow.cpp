@@ -1,12 +1,15 @@
 #include <QtGui>
+#include <QSettings>
 
 #include "bigxmlmainwindow.h"
 #include "bigxmlreader.h"
 
 MainWindow::MainWindow()
-{
+{    
     QStringList labels;
     labels << tr("Node/Attribute")  << tr("Value/Comment"); //<< tr("Child count") ;
+    m_mesages = 0;
+    m_mesageDock = 0;
 
     bigxmlWidget.header()->setResizeMode(QHeaderView::ResizeToContents);
     bigxmlWidget.header()->setResizeMode(QHeaderView::Interactive);
@@ -18,12 +21,19 @@ MainWindow::MainWindow()
 
     createActions();
     createMenus();
+    createDockWindows();
 
     statusBar()->showMessage(tr("Ready"));
     connect(&bigxmlWidget,SIGNAL(changeCurPath(QString&)), this,SLOT(changeCurPath(QString&)));
     //void changeCurPath(QString& txt);
     setWindowTitle(tr("BigXmlReader trdm Edition"));
-    resize(680, 620);
+    QSettings set("trdm","bigxmlreader");
+    int ww = set.value("width",620).toInt();
+    int wh = set.value("height",680).toInt();
+    ww = qMax(ww, 620);
+    wh = qMax(wh, 680);
+    //qDebug() << "ww"<<ww<<"wh"<<wh;
+    resize(ww,wh);
 }
 
 void MainWindow::open()
@@ -34,6 +44,7 @@ void MainWindow::open()
                                          tr("XML Files (*.xml)"));
     if (fileName.isEmpty())
         return;
+    m_curFileName = fileName;
     openFile(fileName);
 
 }
@@ -70,6 +81,15 @@ void MainWindow::find()
         }
         findDialog.close();
     }
+}
+
+void MainWindow::propertyCurFile()
+{
+    bool ok;
+    QString text = QInputDialog::getText(this, tr(" BigXmlReader - open curent file name "),
+                                             tr("Curent file name:"), QLineEdit::Normal,
+                                             m_curFileName, &ok);
+
 }
 
 void MainWindow::findNext()
@@ -118,6 +138,9 @@ void MainWindow::changeCurPath(QString &txt)
 
 void MainWindow::createActions()
 {
+    propertyAct = new QAction(tr("&Property..."), this);
+    connect(propertyAct, SIGNAL(triggered()), this, SLOT(propertyCurFile()));
+
     openAct = new QAction(tr("&Open..."), this);
     openAct->setShortcuts(QKeySequence::Open);
     connect(openAct, SIGNAL(triggered()), this, SLOT(open()));
@@ -156,6 +179,7 @@ void MainWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(openAct);
+    fileMenu->addAction(propertyAct);
     separatorAct = fileMenu->addSeparator();
     for (int i = 0; i < MaxRecentFiles; ++i)
          fileMenu->addAction(recentFileActs[i]);
@@ -168,6 +192,8 @@ void MainWindow::createMenus()
     findMenu->addAction(findAct);
     findMenu->addAction(findActNext);
     //findMenu->addSeparator();
+
+    viewMenu = menuBar()->addMenu(tr("&View"));
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(aboutAct);
@@ -208,6 +234,21 @@ void MainWindow::updateRecentFileActions()
     separatorAct->setVisible(numRecentFiles > 0);
 }
 
+void MainWindow::createDockWindows()
+{
+    m_mesageDock = new QDockWidget(tr("Messages"), this);
+    //dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    m_mesages = new QListWidget(m_mesageDock); //customerList ->m_mesages
+
+    m_mesageDock->setWidget(m_mesages);
+    addDockWidget(Qt::BottomDockWidgetArea, m_mesageDock);
+    toggleViewMessagesAct = m_mesageDock->toggleViewAction();
+    viewMenu->addAction(toggleViewMessagesAct);
+    toggleViewMessagesAct->setChecked(false);
+    m_mesageDock->hide();
+
+}
+
 QString MainWindow::strippedName(const QString &fullFileName){
     return QFileInfo(fullFileName).fileName();
 }
@@ -215,6 +256,7 @@ QString MainWindow::strippedName(const QString &fullFileName){
 void MainWindow::openFile(QString &fileName)
 {
     QXmlStreamReader xml;
+    m_curFileName = fileName;
     if( bigxmlWidget.openFile(fileName, xml)){
         //if (!bigxmlWidget.readBigXML(xml)) {
         // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
@@ -222,13 +264,20 @@ void MainWindow::openFile(QString &fileName)
         qint64 sz = QFileInfo(fileName).size();
         if (sz<(1024000 * 3)) // mb
             lebel = 100;
+        setWindowTitle(fileName+" - BigXmlReader"); // даже если файл считан с ошибками, должны знать что за файл....
         if (!bigxmlWidget.readBigXMLtoLevel(xml, lebel)) {
+            QString mess = QString("Parse error in file %1: %2").arg(fileName).arg(bigxmlWidget.errorXMLString(xml));
+            mess.replace('\n',' ');
+
+             QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
+             item->setFlags(item->flags() | Qt::ItemIsEditable);
+            //toggleViewMessagesAct->setChecked(true);
+            m_mesageDock->show();
             QMessageBox::warning(this, tr("BigXmlReader"),
                                  tr("Parse error in file %1:\n\n%2")
                                  .arg(fileName)
                                  .arg(bigxmlWidget.errorXMLString(xml)));
         } else {
-            setWindowTitle(fileName+" - BigXmlReader");
             statusBar()->showMessage(tr("File loaded"), 2000);
         }
     }
@@ -254,5 +303,12 @@ void MainWindow::openRecentFile()
     QAction *action = qobject_cast<QAction *>(sender());
     if (action)
         openFile(action->data().toString());
+}
+
+void MainWindow::closeEvent(QCloseEvent *ev)
+{
+    QSettings set("trdm","bigxmlreader");
+    set.setValue("width",width());
+    set.setValue("height",height());
 }
 
