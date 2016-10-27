@@ -10,6 +10,7 @@ MainWindow::MainWindow()
     labels << tr("Node/Attribute")  << tr("Value/Comment"); //<< tr("Child count") ;
     m_mesages = 0;
     m_mesageDock = 0;
+    m_maxSizeFileFullOpen = (1024000 * 90); // Mb
 
     bigxmlWidget.header()->setResizeMode(QHeaderView::ResizeToContents);
     bigxmlWidget.header()->setResizeMode(QHeaderView::Interactive);
@@ -28,6 +29,7 @@ MainWindow::MainWindow()
     //void changeCurPath(QString& txt);
     setWindowTitle(tr("BigXmlReader trdm Edition"));
     QSettings set("trdm","bigxmlreader");
+    m_curentPath = set.value("curentPath",QDir::currentPath()).toString();
     int ww = set.value("width",620).toInt();
     int wh = set.value("height",680).toInt();
     ww = qMax(ww, 620);
@@ -38,12 +40,16 @@ MainWindow::MainWindow()
 
 void MainWindow::open()
 {
+    if (m_curentPath.isEmpty())
+        m_curentPath = QDir::currentPath();
     QString fileName =
             QFileDialog::getOpenFileName(this, tr("Open XML File"),
-                                         QDir::currentPath(),
+                                         m_curentPath,
                                          tr("XML Files (*.xml)"));
     if (fileName.isEmpty())
         return;
+    QFileInfo fInfo(fileName);
+    m_curentPath = fInfo.dir().path();
     m_curFileName = fileName;
     openFile(fileName);
 
@@ -202,7 +208,7 @@ void MainWindow::createMenus()
     QToolBar *tb = new QToolBar(this);
     tb->setWindowTitle(tr("File Actions"));
     addToolBar(tb);
-
+    // Cur path
     QLabel* label = new QLabel(this);
     label->setText("Cur path:");
     tb->addWidget(label);
@@ -212,6 +218,18 @@ void MainWindow::createMenus()
     m_cBoxCurPath->setEditable(true);
     m_cBoxCurPath->setMaximumWidth(200);
     m_cBoxCurPath->setMinimumWidth(200);
+
+    // Searching
+    QLabel* label2 = new QLabel(this);
+    label2->setText("Searching:");
+    tb->addWidget(label2);
+
+    m_cBoxSearching = new QComboBox(this);
+    tb->addWidget(m_cBoxSearching);
+    m_cBoxSearching->setEditable(true);
+    m_cBoxSearching->setMaximumWidth(200);
+    m_cBoxSearching->setMinimumWidth(200);
+    tb->addAction(findActNext);
 
 }
 
@@ -256,20 +274,25 @@ QString MainWindow::strippedName(const QString &fullFileName){
 void MainWindow::openFile(QString &fileName)
 {
     QXmlStreamReader xml;
-    m_curFileName = fileName;
+    m_curFileName = fileName;    
     if( bigxmlWidget.openFile(fileName, xml)){
         //if (!bigxmlWidget.readBigXML(xml)) {
         // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
         int lebel = 4;
         qint64 sz = QFileInfo(fileName).size();
-        if (sz<(1024000 * 3)) // mb
+        if (sz<m_maxSizeFileFullOpen) // mb
             lebel = 100;
+
+        QFileInfo fInfo(fileName);
+        m_curentPath = fInfo.dir().path();
+        m_curFileName = fileName;
+
         setWindowTitle(fileName+" - BigXmlReader"); // даже если файл считан с ошибками, должны знать что за файл....
         QString mess;
         if (!bigxmlWidget.readBigXMLtoLevel(xml, lebel)) {
             mess = QString("Parse error in file %1: %2").arg(fileName).arg(bigxmlWidget.errorXMLString(xml));
             mess.replace('\n',' ');
-
+            mess.replace("/","\\");
             QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
             item->setFlags(item->flags() | Qt::ItemIsEditable);
             //toggleViewMessagesAct->setChecked(true);
@@ -282,6 +305,7 @@ void MainWindow::openFile(QString &fileName)
             mess = QString("Open file %1").arg(fileName);
             mess.replace('\n',' ');
             statusBar()->showMessage(tr("File loaded"), 2000);
+            mess.replace("/","\\");
             QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
             item->setFlags(item->flags() | Qt::ItemIsEditable);
         }
@@ -311,9 +335,11 @@ void MainWindow::openRecentFile()
 }
 
 void MainWindow::closeEvent(QCloseEvent *ev)
-{
+{    
     QSettings set("trdm","bigxmlreader");
     set.setValue("width",width());
     set.setValue("height",height());
+    set.setValue("curentPath",m_curentPath);
+    ev->accept();
 }
 

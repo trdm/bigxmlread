@@ -38,11 +38,14 @@ private:
     void createMenus();
     void updateRecentFileActions();
     void createDockWindows();
+
     QString strippedName(const QString &fullFileName);
+    int m_maxSizeFileFullOpen;
 
     BigXmlReader bigxmlWidget;
 
     QString m_curFileName;
+    QString m_curentPath;
     QListWidget *m_mesages;
     QDockWidget *m_mesageDock;
 
@@ -62,6 +65,7 @@ private:
     QAction *separatorAct;
     QToolBar *tb;
     QComboBox* m_cBoxCurPath;
+    QComboBox* m_cBoxSearching;
     enum { MaxRecentFiles = 20 };
     QAction *recentFileActs[MaxRecentFiles];
 
