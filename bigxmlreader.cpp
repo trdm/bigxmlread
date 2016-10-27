@@ -435,11 +435,11 @@ void BigXmlReader::enterBigXmlItem(QTreeWidgetItem* itemBegin, int column)
     currentItemChangedXml(itemBegin,0);
     QPlainTextEdit* label = new QPlainTextEdit(this);
     label->setPlainText(itemBegin->text(1));
-    label->setReadOnly(true);
+    label->setReadOnly(false);//    label->setReadOnly(true);
     label->setMaximumHeight(200);
     QLineEdit * lineEdit = new QLineEdit(this);
     lineEdit->setText(itemBegin->text(0));
-    lineEdit->setReadOnly(true);
+    lineEdit->setReadOnly(false);//    lineEdit->setReadOnly(true);
 
     QVBoxLayout *Layout = new QVBoxLayout;
     Layout->addWidget(lineEdit);

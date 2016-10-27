@@ -265,12 +265,13 @@ void MainWindow::openFile(QString &fileName)
         if (sz<(1024000 * 3)) // mb
             lebel = 100;
         setWindowTitle(fileName+" - BigXmlReader"); // даже если файл считан с ошибками, должны знать что за файл....
+        QString mess;
         if (!bigxmlWidget.readBigXMLtoLevel(xml, lebel)) {
-            QString mess = QString("Parse error in file %1: %2").arg(fileName).arg(bigxmlWidget.errorXMLString(xml));
+            mess = QString("Parse error in file %1: %2").arg(fileName).arg(bigxmlWidget.errorXMLString(xml));
             mess.replace('\n',' ');
 
-             QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
-             item->setFlags(item->flags() | Qt::ItemIsEditable);
+            QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
             //toggleViewMessagesAct->setChecked(true);
             m_mesageDock->show();
             QMessageBox::warning(this, tr("BigXmlReader"),
@@ -278,7 +279,11 @@ void MainWindow::openFile(QString &fileName)
                                  .arg(fileName)
                                  .arg(bigxmlWidget.errorXMLString(xml)));
         } else {
+            mess = QString("Open file %1").arg(fileName);
+            mess.replace('\n',' ');
             statusBar()->showMessage(tr("File loaded"), 2000);
+            QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
         }
     }
     QSettings settings;
