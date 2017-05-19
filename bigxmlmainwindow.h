@@ -68,7 +68,8 @@ private:
     QComboBox* m_cBoxSearching;
     enum { MaxRecentFiles = 20 };
     QAction *recentFileActs[MaxRecentFiles];
-
+    qint64 m_openFileSize;
+    qint64 m_1MbToBute;
     int m_countRecentFiles;
 
 };

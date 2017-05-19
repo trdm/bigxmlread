@@ -47,6 +47,7 @@ public:
     QString getFilename(){ return currentFile.fileName(); }
 
     QString strFindString;
+    void expandAll();
 
 public Q_SLOTS:
     void expandBigXmlItem(QTreeWidgetItem * item );

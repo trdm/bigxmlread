@@ -6,11 +6,13 @@
 
 MainWindow::MainWindow()
 {    
-    QStringList labels;
+    QStringList labels;    
     labels << tr("Node/Attribute")  << tr("Value/Comment"); //<< tr("Child count") ;
     m_mesages = 0;
     m_mesageDock = 0;
-    m_maxSizeFileFullOpen = (1024000 * 90); // Mb
+    m_1MbToBute = 1024000;
+    m_maxSizeFileFullOpen = (m_1MbToBute * 90); // 90 Mb
+    m_openFileSize = 0;
 
     bigxmlWidget.header()->setResizeMode(QHeaderView::ResizeToContents);
     bigxmlWidget.header()->setResizeMode(QHeaderView::Interactive);
@@ -34,7 +36,8 @@ MainWindow::MainWindow()
     int wh = set.value("height",680).toInt();
     ww = qMax(ww, 620);
     wh = qMax(wh, 680);
-    //qDebug() << "ww"<<ww<<"wh"<<wh;
+    bigxmlWidget.strFindString = set.value("FindString").toString();
+    m_cBoxSearching->addItem(bigxmlWidget.strFindString);
     resize(ww,wh);
 }
 
@@ -120,8 +123,9 @@ void MainWindow::about()
                       QString(tr(
                          "The <b>BigXmlReader</b> example demonstrates how to read big xml file.\n\r"
                          "<br>"                                  
-                         "E-mail: sikuda@yandex.ru"
-                         "<a href = \"https://github.com/sikuda/bigxmlread\">https://github.com/sikuda/bigxmlread</a>"
+                         "E-mail: sikuda@yandex.ru "
+                         "<br>"
+                         "site: <a href = \"https://github.com/sikuda/bigxmlread\">https://github.com/sikuda/bigxmlread</a>"
                          "<br>"
                          "<br>"
                          "Edition of trdm E-mail: trdmval@gmail.com"
@@ -129,7 +133,9 @@ void MainWindow::about()
                          "<a href = \"https://github.com/trdm/bigxmlread\">https://github.com/trdm/bigxmlread</a>"
                          "<br>"
                          "Compiled at %1 %2"
-                         )).arg(__DATE__).arg(__TIME__));
+                         "<br>"
+                         "Executed path: %3"
+                         )).arg(__DATE__).arg(__TIME__).arg(qApp->applicationFilePath()));
 }
 
 void MainWindow::changeCurPath(QString &txt)
@@ -279,8 +285,8 @@ void MainWindow::openFile(QString &fileName)
         //if (!bigxmlWidget.readBigXML(xml)) {
         // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
         int lebel = 4;
-        qint64 sz = QFileInfo(fileName).size();
-        if (sz<m_maxSizeFileFullOpen) // mb
+        m_openFileSize = QFileInfo(fileName).size();
+        if (m_openFileSize<m_maxSizeFileFullOpen) // mb
             lebel = 100;
 
         QFileInfo fInfo(fileName);
@@ -324,7 +330,9 @@ void MainWindow::openFile(QString &fileName)
         if (mainWin)
             mainWin->updateRecentFileActions();
     }
-
+    if (m_openFileSize < (m_1MbToBute*5)) {
+        bigxmlWidget.expandAll();
+    }
 }
 
 void MainWindow::openRecentFile()
@@ -340,6 +348,7 @@ void MainWindow::closeEvent(QCloseEvent *ev)
     set.setValue("width",width());
     set.setValue("height",height());
     set.setValue("curentPath",m_curentPath);
+    set.setValue("FindString",bigxmlWidget.strFindString);
     ev->accept();
 }
 

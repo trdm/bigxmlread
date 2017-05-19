@@ -62,6 +62,11 @@ bool BigXmlReader::openFile(QString& fileName, QXmlStreamReader& xml, bool fOpen
     return true;
 }
 
+void BigXmlReader::expandAll()
+{
+    QTreeWidget::expandAll();
+}
+
 bool BigXmlReader::readBigXML(QXmlStreamReader& xml)
 {
     BigXmlItem* item = 0;
