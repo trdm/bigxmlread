@@ -1,6 +1,6 @@
 #include <QtGui>
 #include <QSettings>
-
+#include <QLineEdit>
 #include "bigxmlmainwindow.h"
 #include "bigxmlreader.h"
 
@@ -36,9 +36,18 @@ MainWindow::MainWindow()
     int wh = set.value("height",680).toInt();
     ww = qMax(ww, 620);
     wh = qMax(wh, 680);
-    bigxmlWidget.strFindString = set.value("FindString").toString();
-    m_cBoxSearching->addItem(bigxmlWidget.strFindString);
     resize(ww,wh);
+
+    bigxmlWidget.strFindString = set.value("FindString").toString();
+    QStringList itemsSerch = set.value("FindStringList").toStringList();
+    QString str;
+    int countrItems = 0;
+    foreach (str, itemsSerch) {
+        m_cBoxSearching->addItem(str);
+        countrItems++;
+        if (countrItems > 50)
+            break;
+    }
 }
 
 void MainWindow::open()
@@ -62,6 +71,7 @@ void MainWindow::find()
 {
     QLabel* label = new QLabel(tr("Find:"));
     QLineEdit* lineEdit = new QLineEdit;
+    updateFindString();
     lineEdit->setText(bigxmlWidget.strFindString);
     label->setBuddy(lineEdit);
 
@@ -82,6 +92,11 @@ void MainWindow::find()
     if( findDialog.exec() == QDialog::Accepted){
         QXmlStreamReader xml;
         bigxmlWidget.strFindString = lineEdit->text();
+        if (m_cBoxSearching->currentText() != bigxmlWidget.strFindString) {
+            m_cBoxSearching->insertItem(0,bigxmlWidget.strFindString);
+            QLineEdit *le = m_cBoxSearching->lineEdit();
+            le->setText(bigxmlWidget.strFindString);
+        }
         QString strFilename = bigxmlWidget.getFilename();
         if( bigxmlWidget.openFile(strFilename, xml, false)){
             QString findString = lineEdit->text();
@@ -89,6 +104,40 @@ void MainWindow::find()
             else QMessageBox::warning(this, tr("BigXmlReader"), tr("Can't find %1").arg(findString));
         }
         findDialog.close();
+    }
+}
+
+void MainWindow::findBy()
+{
+    QString findStr = m_cBoxCurPath->currentText();
+    if (!findStr.isEmpty()){
+        QXmlStreamReader xml;
+        updateFindString();
+        QTreeWidgetItem* item = bigxmlWidget.currentItem();
+        if( bigxmlWidget.openFile(bigxmlWidget.strFindString, xml, false)){
+            QString findString = bigxmlWidget.strFindString;
+            if( bigxmlWidget.findDataBigXML( xml, findString, item )) bigxmlWidget.buildTreeBigXMLToMaxIndex();
+            else QMessageBox::warning(this, tr("BigXmlReader"), tr("Can't find %1").arg(findString));
+        }
+    }
+}
+
+void MainWindow::findNext()
+{
+    QXmlStreamReader xml;
+    QTreeWidgetItem* item = bigxmlWidget.currentItem();
+    updateFindString();
+    if( bigxmlWidget.openFile(bigxmlWidget.strFindString, xml, false)){
+        QString findString = bigxmlWidget.strFindString;
+        if( bigxmlWidget.findDataBigXML( xml, findString, item )) bigxmlWidget.buildTreeBigXMLToMaxIndex();
+        else {
+            if( bigxmlWidget.findDataBigXML( xml, findString, 0 )) bigxmlWidget.buildTreeBigXMLToMaxIndex();
+            else {
+                QString mess = tr("Can't find '%1'").arg(findString);
+                showNewMessage(mess);
+                //QMessageBox::warning(this, tr("BigXmlReader"), tr("Can't find %1").arg(findString));
+            }
+        }
     }
 }
 
@@ -101,16 +150,6 @@ void MainWindow::propertyCurFile()
 
 }
 
-void MainWindow::findNext()
-{
-    QXmlStreamReader xml;
-    QTreeWidgetItem* item = bigxmlWidget.currentItem();
-    if( bigxmlWidget.openFile(bigxmlWidget.strFindString, xml, false)){
-        QString findString = bigxmlWidget.strFindString;
-        if( bigxmlWidget.findDataBigXML( xml, findString, item )) bigxmlWidget.buildTreeBigXMLToMaxIndex();
-        else QMessageBox::warning(this, tr("BigXmlReader"), tr("Can't find %1").arg(findString));
-    }
-}
 
 void MainWindow::findPrevious()
 {
@@ -267,10 +306,32 @@ void MainWindow::createDockWindows()
     m_mesageDock->setWidget(m_mesages);
     addDockWidget(Qt::BottomDockWidgetArea, m_mesageDock);
     toggleViewMessagesAct = m_mesageDock->toggleViewAction();
+    toggleViewMessagesAct->setShortcut(QKeySequence(Qt::SHIFT + Qt::CTRL+ Qt::Key_Z));
     viewMenu->addAction(toggleViewMessagesAct);
     toggleViewMessagesAct->setChecked(false);
     m_mesageDock->hide();
 
+}
+
+void MainWindow::updateFindString()
+{
+    QString findStr = m_cBoxSearching->currentText();
+    if (!findStr.isEmpty()){
+        if (bigxmlWidget.strFindString != findStr)
+            bigxmlWidget.strFindString = findStr;
+    }
+}
+
+void MainWindow::showNewMessage(QString messageStr)
+{
+    if (messageStr.isEmpty())
+        return;
+    QString strMes = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    strMes.append(": ").append(messageStr);
+    QListWidgetItem *item = new QListWidgetItem(strMes,m_mesages);
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+    //toggleViewMessagesAct->setChecked(true);
+    m_mesageDock->show();
 }
 
 QString MainWindow::strippedName(const QString &fullFileName){
@@ -281,7 +342,8 @@ void MainWindow::openFile(QString &fileName)
 {
     QXmlStreamReader xml;
     m_curFileName = fileName;    
-    if( bigxmlWidget.openFile(fileName, xml)){
+    bool isOpen = bigxmlWidget.openFile(fileName, xml);
+    if(isOpen){
         //if (!bigxmlWidget.readBigXML(xml)) {
         // Было if (!bigxmlWidget.readBigXMLtoLevel(xml, 2)) {
         int lebel = 4;
@@ -299,10 +361,7 @@ void MainWindow::openFile(QString &fileName)
             mess = QString("Parse error in file %1: %2").arg(fileName).arg(bigxmlWidget.errorXMLString(xml));
             mess.replace('\n',' ');
             mess.replace("/","\\");
-            QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
-            item->setFlags(item->flags() | Qt::ItemIsEditable);
-            //toggleViewMessagesAct->setChecked(true);
-            m_mesageDock->show();
+            showNewMessage(mess);
             QMessageBox::warning(this, tr("BigXmlReader"),
                                  tr("Parse error in file %1:\n\n%2")
                                  .arg(fileName)
@@ -312,14 +371,14 @@ void MainWindow::openFile(QString &fileName)
             mess.replace('\n',' ');
             statusBar()->showMessage(tr("File loaded"), 2000);
             mess.replace("/","\\");
-            QListWidgetItem *item = new QListWidgetItem(mess,m_mesages);
-            item->setFlags(item->flags() | Qt::ItemIsEditable);
+            showNewMessage(mess);
         }
     }
     QSettings settings;
     QStringList files = settings.value("recentFileList").toStringList();
     files.removeAll(fileName);
-    files.prepend(fileName);
+    if (isOpen)
+        files.prepend(fileName);
     while (files.size() > MaxRecentFiles)
         files.removeLast();
 
@@ -349,6 +408,13 @@ void MainWindow::closeEvent(QCloseEvent *ev)
     set.setValue("height",height());
     set.setValue("curentPath",m_curentPath);
     set.setValue("FindString",bigxmlWidget.strFindString);
+    if (m_cBoxSearching->count() > 0) {
+        QStringList items;
+        for (int q = 0; q<m_cBoxSearching->count(); q++) {
+            items << m_cBoxSearching->itemText(q);
+        }
+        set.setValue("FindStringList",items);
+    }
     ev->accept();
 }
 

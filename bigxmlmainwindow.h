@@ -25,8 +25,9 @@ public:
 public slots:
     void open();
     void find();
-    void propertyCurFile();
+    void findBy();
     void findNext();
+    void propertyCurFile();
     void findPrevious();
     void about();
     void changeCurPath(QString& txt);
@@ -38,6 +39,8 @@ private:
     void createMenus();
     void updateRecentFileActions();
     void createDockWindows();
+    void updateFindString();
+    void showNewMessage(QString messageStr);
 
     QString strippedName(const QString &fullFileName);
     int m_maxSizeFileFullOpen;
